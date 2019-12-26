@@ -17,8 +17,10 @@ sub default_severity     { return $SEVERITY_LOWEST }
 sub default_themes       { return qw( cosmetic ) }
 sub applies_to           { return 'PPI::Statement::Variable'  }
 
-my $DESCRIPTION = 'Please use StrictSequenced';
-my $EXPLAIN     = 'You forgot StrictSequenced';
+my $DESCRIPTION = q{You should use 'StrictSequenced', an extensions of Data::Validator.};
+my $EXPLAIN     = q{Passing named arguments when a subroutine has only one argument is redundant.};
+
+
  
 sub violates {
     my ($self, $stmt, $doc) = @_;
