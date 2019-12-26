@@ -17,8 +17,8 @@ sub applies_to           { return 'PPI::Statement::Variable'  }
 
 use DDP +{ deparse => 1, use_prototypes => 0 };
 
-my $DESCRIPTION = '';
-my $EXPLAIN = '';
+my $DESCRIPTION = 'Please use StrictSequenced';
+my $EXPLAIN = 'You forgot StrictSequenced';
  
 sub violates {
     my ($self, $stmt, $doc) = @_;
