@@ -8,6 +8,7 @@ our $VERSION = '0.01';
 use List::Util qw( any );
 use Perl::Critic::Utils qw(
   $SEVERITY_LOWEST
+  parse_arg_list
 );
  
 use parent 'Perl::Critic::Policy';
@@ -20,7 +21,7 @@ sub applies_to           { return 'PPI::Statement::Variable'  }
 my $DESCRIPTION = q{You should use 'StrictSequenced', an extensions of Data::Validator.};
 my $EXPLAIN     = q{Passing named arguments when a subroutine has only one argument is redundant.};
 
-
+use DDP +{ deparse => 1, use_prototypes => 0 };
  
 sub violates {
     my ($self, $stmt, $doc) = @_;
@@ -41,16 +42,12 @@ sub violates {
         && $tokens[4]->content eq '->'
         && $tokens[5]->isa('PPI::Token::Word')
         && $tokens[5]->content eq 'new'
-        && $tokens[6]->isa('PPI::Structure::List')
     ) {
-        # TODO: expression 2つ以上のケースはありますか
-        my ($expression) = $tokens[6]->schildren;
-        # TODO: カンマが連続している場合はどうするんですかあああ！！！
-        my @list_tokens = $expression->schildren;
-        # XXX: @list_tokens の中身はチェックしなくて大丈夫ですか
-        # 4 = hash key, comma operation, hash value, cooma operation
-        if ( @list_tokens % 4 == 0 || @list_tokens % 4 == 3 ) {
-            my $args_num = int( (@list_tokens + 3) / 4 );
+        my @args_passed_to_new = parse_arg_list($tokens[5]);
+
+        # Args passed to new as named arguments
+        if ( @args_passed_to_new % 2 == 0 ) {
+            my $args_num = int @args_passed_to_new / 2;
 
             # match '->with(qw/ /)'
             # TODO: with を別に呼び出している場合
