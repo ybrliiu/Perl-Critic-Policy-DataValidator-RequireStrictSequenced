@@ -5,6 +5,7 @@ use warnings;
 
 our $VERSION = '0.01';
 
+use List::Util qw( any );
 use Perl::Critic::Utils qw{ :severities :classification :ppi };
  
 use parent 'Perl::Critic::Policy';
@@ -15,24 +16,19 @@ sub default_themes       { return qw( bugs ) }
 sub applies_to           { return 'PPI::Statement::Variable'  }
 
 use DDP +{ deparse => 1, use_prototypes => 0 };
+
+my $DESCRIPTION = '';
+my $EXPLAIN = '';
  
 sub violates {
     my ($self, $stmt, $doc) = @_;
-
-    $self->is_data_validator($stmt);
-
-    return;
-    return $self->violation('Description', 'Explain', $stmt);
-}
-
-sub is_data_validator {
-    my ($self, $stmt) = @_;
 
     return unless $stmt->symbols != 1;
 
     my @tokens = $stmt->schildren;
 
     # match 'state $v = Data::Validator->new()'
+    # XXX: このようなチェック、もっといい方法で行えないのか
     if ( $tokens[0]->isa('PPI::Token::Word')
         && $tokens[1]->isa('PPI::Token::Symbol')
         && $tokens[2]->isa('PPI::Token::Operator')
@@ -48,23 +44,36 @@ sub is_data_validator {
         # TODO: expression 2つ以上のケースはありますか
         my ($expression) = $tokens[6]->schildren;
         # TODO: カンマが連続している場合はどうするんですかあああ！！！
-        # 1つめ PPI::Token::Word || PPI::Token::Quote
-        # 2つめ 
         my @list_tokens = $expression->schildren;
-        while ( my @tokens = splice @list_tokens, 0, 4 ) {
-            if (@tokens == 4) {
-                if ( ( $tokens[0]->isa('PPI::Token::Word') || $tokens[0]->isa('PPI::Token::Quote') )
-                    && $tokens[1]->isa('PPI::Token::Operator')
-                    && ( $tokens[1]->content eq '=>' || $tokens[1]->content eq ',' )
-                    && $tokens[2]->isa('PPI::Token::Quote')
-                    && ( $tokens[3]->content eq '=>' || $tokens[3]->content eq ',' )
-                ) {
+        # XXX: @list_tokens の中身はチェックしなくて大丈夫ですか
+        # 4 = hash key, comma operation, hash value, cooma operation
+        if ( @list_tokens % 4 == 0 || @list_tokens % 4 == 3 ) {
+            my $args_num = int( (@list_tokens + 3) / 4 );
+
+            # match '->with(qw/ /)'
+            # TODO: with を別に呼び出している場合
+            if ( $tokens[7]->isa('PPI::Token::Operator')
+                && $tokens[7]->content eq '->'
+                && $tokens[8]->isa('PPI::Token::Word')
+                && $tokens[8]->content eq 'with'
+                && $tokens[9]->isa('PPI::Structure::List')
+            ) {
+                my ($expression) = $tokens[9]->schildren;
+                my ($words)      = $expression->schildren;
+                my @role_names   = $words->literal;
+                my $has_strict_sequenced = any { $_ eq 'StrictSequenced' } @role_names;
+                if ($args_num == 1 && !$has_strict_sequenced) {
+                    return $self->violation($DESCRIPTION, $EXPLAIN, $stmt);
+                }
+                elsif ($args_num > 1 && $has_strict_sequenced) {
+                    return $self->violation($DESCRIPTION, $EXPLAIN, $stmt);
                 }
             }
         }
-        # 引数が1つなら RequireStrictSequenced あるかチェック
-        # 引数が2つ以上なら RequireStrictSequenced ないかチェック
     }
+
+    return;
+    return $self->violation('Description', 'Explain', $stmt);
 }
  
 1;
