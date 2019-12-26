@@ -2,9 +2,8 @@ use v5.18;
 use warnings;
 use utf8;
 use Test2::V0;
- 
 use Perl::Critic;
- 
+
 my $critic = Perl::Critic->new(
     '-single-policy' => 'DataValidator::RequireStrictSequenced',
 );

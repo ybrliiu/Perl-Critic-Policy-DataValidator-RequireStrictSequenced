@@ -73,6 +73,7 @@ sub violates {
             }
         }
     }
+    return;
 }
  
 1;
