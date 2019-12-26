@@ -6,19 +6,19 @@ use warnings;
 our $VERSION = '0.01';
 
 use List::Util qw( any );
-use Perl::Critic::Utils qw{ :severities :classification :ppi };
+use Perl::Critic::Utils qw(
+  $SEVERITY_LOWEST
+);
  
 use parent 'Perl::Critic::Policy';
  
 sub supported_parameters { return () }
-sub default_severity     { return $SEVERITY_HIGHEST }
-sub default_themes       { return qw( bugs ) }
+sub default_severity     { return $SEVERITY_LOWEST }
+sub default_themes       { return qw( cosmetic ) }
 sub applies_to           { return 'PPI::Statement::Variable'  }
 
-use DDP +{ deparse => 1, use_prototypes => 0 };
-
 my $DESCRIPTION = 'Please use StrictSequenced';
-my $EXPLAIN = 'You forgot StrictSequenced';
+my $EXPLAIN     = 'You forgot StrictSequenced';
  
 sub violates {
     my ($self, $stmt, $doc) = @_;
@@ -71,9 +71,6 @@ sub violates {
             }
         }
     }
-
-    return;
-    return $self->violation('Description', 'Explain', $stmt);
 }
  
 1;
