@@ -1,7 +1,7 @@
 package Perl::Critic::Policy::DataValidator::RequireStrictSequenced;
-use 5.008001;
-use strict;
+use v5.18;
 use warnings;
+use utf8;
 
 our $VERSION = '0.01';
 
@@ -9,6 +9,8 @@ use List::Util qw( any );
 use Perl::Critic::Utils qw(
   $SEVERITY_LOWEST
   parse_arg_list
+  is_class_name
+  is_method_call
 );
  
 use parent 'Perl::Critic::Policy';
@@ -18,58 +20,60 @@ sub default_severity     { return $SEVERITY_LOWEST }
 sub default_themes       { return qw( cosmetic ) }
 sub applies_to           { return 'PPI::Statement::Variable'  }
 
-my $DESCRIPTION = q{You should use 'StrictSequenced', an extensions of Data::Validator.};
-my $EXPLAIN     = q{Passing named arguments when a subroutine has only one argument is redundant.};
 
 use DDP +{ deparse => 1, use_prototypes => 0 };
  
 sub violates {
-  my ( $self, $stmt, $doc ) = @_;
+  my ($self, $stmt, $doc) = @_;
 
-  return unless $stmt->symbols != 1;
+  # match 'Data::Validator->'
+  my $data_validator = $stmt->find_first(sub {
+    my (undef, $child) = @_;
+    return is_class_name($child) && $child->content eq 'Data::Validator';
+  });
+  return unless !!$data_validator;
 
-  my @tokens = $stmt->schildren;
+  # match '->new'
+  my $guess_new = $data_validator->snext_sibling->snext_sibling;
+  return unless is_method_call($guess_new) && $guess_new->content eq 'new';
 
-  # match 'state $v = Data::Validator->new'
-  # XXX: このようなチェック、もっといい方法で行えないのか
-  if ( $tokens[0]->isa('PPI::Token::Word')
-    && $tokens[1]->isa('PPI::Token::Symbol')
-    && $tokens[2]->isa('PPI::Token::Operator')
-    && $tokens[2]->content eq '='
-    && $tokens[3]->isa('PPI::Token::Word')
-    && $tokens[3]->content eq 'Data::Validator'
-    && $tokens[4]->isa('PPI::Token::Operator')
-    && $tokens[4]->content eq '->'
-    && $tokens[5]->isa('PPI::Token::Word')
-    && $tokens[5]->content eq 'new' )
-  {
-    my @args_passed_to_new = parse_arg_list($tokens[5]);
+  # Args passed to new as named arguments
+  my @args_passed_to_new = parse_arg_list($guess_new);
+  return if @args_passed_to_new % 2 == 1;
 
-    # Args passed to new as named arguments
-    if ( @args_passed_to_new % 2 == 0 ) {
-      my $params_num = int @args_passed_to_new / 2;
+  my $params_num = int @args_passed_to_new / 2;
+  return if $params_num == 0;
 
-      # match '->with(qw/ /)'
-      # TODO: with を別に呼び出している場合
-      if ( $tokens[7]->isa('PPI::Token::Operator')
-        && $tokens[7]->content eq '->'
-        && $tokens[8]->isa('PPI::Token::Word')
-        && $tokens[8]->content eq 'with'
-        && $tokens[9]->isa('PPI::Structure::List') )
-      {
-        my @args_passed_to_with  = parse_arg_list($tokens[8]);
-        my @extensions_name      = map { $_->literal } map { @$_ } @args_passed_to_with;
-        my $has_strict_sequenced = any { $_ eq 'StrictSequenced' } @extensions_name;
-        if ( $params_num == 1 && !$has_strict_sequenced ) {
-          return $self->violation($DESCRIPTION, $EXPLAIN, $stmt);
-        }
-        elsif ( $params_num > 1 && $has_strict_sequenced ) {
-          return $self->violation($DESCRIPTION, $EXPLAIN, $stmt);
-        }
-      }
-    }
+  # TODO: with を別に呼び出している場合
+
+  # match '->with'
+  my $guess_method_call_operator = $guess_new->snext_sibling->snext_sibling;
+  return unless defined $guess_method_call_operator;
+
+  my $guess_with = $guess_method_call_operator->snext_sibling;
+  return unless is_method_call($guess_with) && $guess_with->content eq 'with';
+
+  my @args_passed_to_with = parse_arg_list($guess_with);
+  my @extensions_name     = map { $_->literal } map { @$_ } @args_passed_to_with;
+  my $has_strict_sequenced = any { $_ eq 'StrictSequenced' } @extensions_name;
+
+  if ( $params_num == 1 && !$has_strict_sequenced ) {
+    return $self->violation(
+      q{You should use 'StrictSequenced', an extensions of Data::Validator.},
+      q{Passing named arguments when a subroutine has only one argument is redundant.},
+      $stmt
+    );
   }
-  return;
+  elsif ( $params_num > 1 && $has_strict_sequenced ) {
+    return $self->violation(
+      q{You should not use 'StrictSequenced', an extensions of Data::Validator.},
+      q{Use a named arguments for any subroutine that has more than two parameters.},
+      $stmt
+    );
+  }
+  else {
+    return;
+  }
 }
  
 1;
