@@ -17,12 +17,9 @@ use parent 'Perl::Critic::Policy';
  
 sub supported_parameters { return () }
 sub default_severity     { return $SEVERITY_LOWEST }
-sub default_themes       { return qw( cosmetic ) }
+sub default_themes       { return qw( maintenance ) }
 sub applies_to           { return 'PPI::Statement::Variable'  }
 
-
-use DDP +{ deparse => 1, use_prototypes => 0 };
- 
 sub violates {
   my ($self, $stmt, $doc) = @_;
 
