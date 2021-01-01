@@ -2,8 +2,8 @@
 
 Perl::Critic::Policy::DataValidator::RequireStrictSequenced - It's new $module
 
-![Vim](https://liiu.dev/images/perl_critic_policy_data_validator_require_strictsequenced_vim.png)
-![VSCode](https://liiu.dev/images/perl_critic_policy_data_validator_require_strictsequenced_vscode.png)
+![Vim](https://raw.githubusercontent.com/ybrliiu/Perl-Critic-Policy-DataValidator-RequireStrictSequenced/master/doc/images/perl_critic_policy_data_validator_require_strictsequenced_vim.png)
+![VSCode](https://raw.githubusercontent.com/ybrliiu/Perl-Critic-Policy-DataValidator-RequireStrictSequenced/master/doc/images/perl_critic_policy_data_validator_require_strictsequenced_vscode.png)
 
 # SYNOPSIS
 
